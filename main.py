@@ -84,8 +84,25 @@ def show_list():
     print_list(list(enumerate(prompts, start=1)))
 
 
+def show_by_category():
+    """카테고리를 고르면 그 카테고리의 프롬프트만 출력한다."""
+    print("\n=== 카테고리별 조회 ===")
+    # 기본 카테고리 + 직접 입력으로 추가된 카테고리를 함께 보여준다
+    names = list(CATEGORIES) + sorted({p["category"] for p in prompts} - set(CATEGORIES))
+    for index, name in enumerate(names, start=1):
+        print(f"{index}) {name}")
+    choice = input("선택: ").strip()
+    if not (choice.isdigit() and 1 <= int(choice) <= len(names)):
+        print("목록에 있는 번호를 입력해주세요.")
+        return
+    category = names[int(choice) - 1]
+    items = [(i, p) for i, p in enumerate(prompts, start=1) if p["category"] == category]
+    print(f"\n[{category}] 카테고리 프롬프트:")
+    print_list(items, f"[{category}] 카테고리에 등록된 프롬프트가 없습니다.")
+
+
 def main():
-    actions = {"1": add_prompt, "2": show_list}
+    actions = {"1": add_prompt, "2": show_list, "3": show_by_category}
     while True:
         choice = show_menu()
         if choice == "0":
