@@ -62,8 +62,30 @@ def add_prompt():
     print(f"\n'{title}' 프롬프트가 추가되었습니다! (총 {len(prompts)}개)")
 
 
+def format_line(index, prompt):
+    """목록 한 줄: 번호. [카테고리] 제목 ⭐"""
+    star = " ⭐" if prompt["favorite"] else ""
+    return f"{index}. [{prompt['category']}] {prompt['title']}{star}"
+
+
+def print_list(items, empty_message="등록된 프롬프트가 없습니다."):
+    """(원본 번호, 프롬프트) 목록을 출력하고 총 개수를 보여준다."""
+    if not items:
+        print(empty_message)
+        return
+    for index, prompt in items:
+        print(format_line(index, prompt))
+    print(f"\n총 {len(items)}개의 프롬프트")
+
+
+def show_list():
+    """저장된 모든 프롬프트를 번호와 함께 출력한다."""
+    print("\n=== 프롬프트 목록 ===")
+    print_list(list(enumerate(prompts, start=1)))
+
+
 def main():
-    actions = {"1": add_prompt}
+    actions = {"1": add_prompt, "2": show_list}
     while True:
         choice = show_menu()
         if choice == "0":
