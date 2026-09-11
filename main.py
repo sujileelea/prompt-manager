@@ -119,8 +119,34 @@ def search_prompt():
     print(f"\n{len(items)}개의 프롬프트를 찾았습니다.")
 
 
+def select_prompt(label="번호 입력"):
+    """번호를 입력받아 해당 프롬프트를 돌려준다. 잘못된 번호면 None."""
+    choice = input(f"{label}: ").strip()
+    if choice.isdigit() and 1 <= int(choice) <= len(prompts):
+        return prompts[int(choice) - 1]
+    print(f"잘못된 번호입니다. 1~{len(prompts)} 사이의 번호를 입력해주세요.")
+    return None
+
+
+def show_detail():
+    """프롬프트 번호를 입력하면 전체 내용을 출력한다."""
+    print("\n=== 프롬프트 상세 보기 ===")
+    prompt = select_prompt()
+    if prompt is None:
+        return
+    line = "─" * 28
+    print(f"\n{line}")
+    print(f"제목: {prompt['title']}")
+    print(f"카테고리: {prompt['category']}")
+    print(f"즐겨찾기: {'⭐' if prompt['favorite'] else '없음'}")
+    print(line)
+    print("내용:")
+    print(prompt["content"])
+    print(line)
+
+
 def main():
-    actions = {"1": add_prompt, "2": show_list, "3": show_by_category, "4": search_prompt}
+    actions = {"1": add_prompt, "2": show_list, "3": show_by_category, "4": search_prompt, "5": show_detail}
     while True:
         choice = show_menu()
         if choice == "0":
