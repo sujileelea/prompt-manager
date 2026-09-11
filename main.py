@@ -15,6 +15,18 @@ EXPORT_DIR = "exports"
 # 실행 중 사용하는 프롬프트 목록 (기본 데이터 복사본)
 prompts = [dict(p, views=0) for p in DEFAULT_PROMPTS]
 
+# 마지막으로 저장하거나 불러온 시점의 내용 — 종료 시 "저장 안 한 변경" 판단용
+saved_snapshot = json.dumps(prompts, ensure_ascii=False, sort_keys=True)
+
+
+def has_unsaved_changes():
+    return json.dumps(prompts, ensure_ascii=False, sort_keys=True) != saved_snapshot
+
+
+def mark_saved():
+    global saved_snapshot
+    saved_snapshot = json.dumps(prompts, ensure_ascii=False, sort_keys=True)
+
 WIDTH = 44
 LINE = "─" * WIDTH
 
@@ -249,7 +261,9 @@ def save_to_json():
     """전체 프롬프트를 JSON 파일로 저장한다. (보너스 1)"""
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(prompts, f, ensure_ascii=False, indent=2)
+    mark_saved()
     print(f"{len(prompts)}개의 프롬프트를 '{DATA_FILE}'에 저장했습니다.")
+    print("다음 실행 때 시작 화면에서 불러오면 추가·즐겨찾기·조회수가 그대로 복원됩니다.")
 
 
 def load_from_json():
@@ -259,9 +273,34 @@ def load_from_json():
         return
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         loaded = json.load(f)
+    before = len(prompts)
     prompts.clear()
     prompts.extend(loaded)
-    print(f"'{DATA_FILE}'에서 {len(prompts)}개의 프롬프트를 불러왔습니다.")
+    mark_saved()
+    favorites = sum(1 for p in prompts if p["favorite"])
+    print(f"'{DATA_FILE}'에서 불러왔습니다: 현재 {before}개 → 파일 {len(prompts)}개 (즐겨찾기 {favorites}개)")
+
+
+def offer_load_on_start():
+    """시작할 때 저장 파일이 있으면 불러올지 묻는다. 기본은 불러오지 않음(기본 데이터로 시작)."""
+    if not os.path.exists(DATA_FILE):
+        return
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        count = len(json.load(f))
+    answer = input(f"저장된 '{DATA_FILE}'(프롬프트 {count}개)이 있습니다. 불러올까요? y/N: ").strip().lower()
+    if answer == "y":
+        load_from_json()
+    else:
+        print("기본 데이터 9개로 시작합니다.")
+
+
+def offer_save_on_exit():
+    """종료할 때 저장하지 않은 변경이 있으면 저장할지 묻는다."""
+    if not has_unsaved_changes():
+        return
+    answer = input("저장하지 않은 변경이 있습니다. JSON으로 저장할까요? y/N: ").strip().lower()
+    if answer == "y":
+        save_to_json()
 
 
 def json_menu():
@@ -345,12 +384,15 @@ def show_top():
 
 
 def main():
+    clear_screen()
+    offer_load_on_start()
     actions = {"1": add_prompt, "2": show_list, "3": show_by_category, "4": search_prompt, "5": show_detail, "6": toggle_favorite, "7": show_favorites,
                "8": json_menu, "9": export_markdown,
                "10": edit_prompt, "11": delete_prompt, "12": show_top}
     while True:
         choice = show_menu()
         if choice == "0":
+            offer_save_on_exit()
             print("프로그램을 종료합니다. 안녕히 가세요!")
             break
         action = actions.get(choice)
