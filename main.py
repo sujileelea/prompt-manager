@@ -3,7 +3,13 @@
 메뉴 번호를 입력해 기능을 선택한다. 데이터는 프로그램 실행 중에만 유지된다.
 """
 
+import json
+import os
+
 from data import CATEGORIES, DEFAULT_PROMPTS
+
+DATA_FILE = "prompts.json"
+EXPORT_DIR = "exports"
 
 # 실행 중 사용하는 프롬프트 목록 (기본 데이터 복사본)
 prompts = [dict(p) for p in DEFAULT_PROMPTS]
@@ -16,6 +22,8 @@ MENU = [
     ("5", "프롬프트 상세 보기"),
     ("6", "즐겨찾기 관리"),
     ("7", "즐겨찾기 목록"),
+    ("8", "JSON 저장 / 불러오기"),
+    ("9", "카테고리별 Markdown 내보내기"),
     ("0", "종료"),
 ]
 
@@ -152,9 +160,10 @@ def toggle_favorite():
     if prompt is None:
         return
     prompt["favorite"] = not prompt["favorite"]
-    state = "추가했습니다" if prompt["favorite"] else "해제했습니다"
-    print(f"'{prompt['title']}' 프롬프트를 즐겨찾기에서 {state}!" if not prompt["favorite"]
-          else f"'{prompt['title']}' 프롬프트를 즐겨찾기에 {state}!")
+    if prompt["favorite"]:
+        print(f"'{prompt['title']}' 프롬프트를 즐겨찾기에 추가했습니다!")
+    else:
+        print(f"'{prompt['title']}' 프롬프트를 즐겨찾기에서 해제했습니다!")
 
 
 def show_favorites():
@@ -169,8 +178,63 @@ def show_favorites():
     print(f"\n총 {len(items)}개의 즐겨찾기")
 
 
+def save_to_json():
+    """전체 프롬프트를 JSON 파일로 저장한다. (보너스 1)"""
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(prompts, f, ensure_ascii=False, indent=2)
+    print(f"{len(prompts)}개의 프롬프트를 '{DATA_FILE}'에 저장했습니다.")
+
+
+def load_from_json():
+    """JSON 파일에서 프롬프트를 불러와 현재 목록을 교체한다. (보너스 1)"""
+    if not os.path.exists(DATA_FILE):
+        print(f"'{DATA_FILE}' 파일이 없습니다. 먼저 저장해주세요.")
+        return
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        loaded = json.load(f)
+    prompts.clear()
+    prompts.extend(loaded)
+    print(f"'{DATA_FILE}'에서 {len(prompts)}개의 프롬프트를 불러왔습니다.")
+
+
+def json_menu():
+    """저장/불러오기 중 하나를 고른다."""
+    print("\n=== JSON 저장 / 불러오기 ===")
+    print("1) 저장")
+    print("2) 불러오기")
+    choice = input("선택: ").strip()
+    if choice == "1":
+        save_to_json()
+    elif choice == "2":
+        load_from_json()
+    else:
+        print("1 또는 2를 입력해주세요.")
+
+
+def export_markdown():
+    """카테고리별로 Markdown 파일을 만든다. (보너스 1)"""
+    print("\n=== 카테고리별 Markdown 내보내기 ===")
+    if not prompts:
+        print("내보낼 프롬프트가 없습니다.")
+        return
+    os.makedirs(EXPORT_DIR, exist_ok=True)
+    categories = sorted({p["category"] for p in prompts})
+    for category in categories:
+        path = os.path.join(EXPORT_DIR, f"{category.replace('/', '_')}.md")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(f"# {category}\n\n")
+            for prompt in prompts:
+                if prompt["category"] != category:
+                    continue
+                star = " ⭐" if prompt["favorite"] else ""
+                f.write(f"## {prompt['title']}{star}\n\n```\n{prompt['content']}\n```\n\n")
+        print(f"- {path}")
+    print(f"\n{len(categories)}개 카테고리를 '{EXPORT_DIR}/' 폴더에 내보냈습니다.")
+
+
 def main():
-    actions = {"1": add_prompt, "2": show_list, "3": show_by_category, "4": search_prompt, "5": show_detail, "6": toggle_favorite, "7": show_favorites}
+    actions = {"1": add_prompt, "2": show_list, "3": show_by_category, "4": search_prompt, "5": show_detail, "6": toggle_favorite, "7": show_favorites,
+               "8": json_menu, "9": export_markdown}
     while True:
         choice = show_menu()
         if choice == "0":
