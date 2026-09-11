@@ -5,6 +5,7 @@
 
 import json
 import os
+import unicodedata
 
 from data import CATEGORIES, DEFAULT_PROMPTS
 
@@ -14,29 +15,58 @@ EXPORT_DIR = "exports"
 # 실행 중 사용하는 프롬프트 목록 (기본 데이터 복사본)
 prompts = [dict(p, views=0) for p in DEFAULT_PROMPTS]
 
+WIDTH = 44
+LINE = "─" * WIDTH
+
+# (번호, 이름, 구역) — 구역이 바뀌는 곳에 구분선을 넣는다
 MENU = [
-    ("1", "프롬프트 추가"),
-    ("2", "프롬프트 목록"),
-    ("3", "카테고리별 조회"),
-    ("4", "프롬프트 검색"),
-    ("5", "프롬프트 상세 보기"),
-    ("6", "즐겨찾기 관리"),
-    ("7", "즐겨찾기 목록"),
-    ("8", "JSON 저장 / 불러오기"),
-    ("9", "카테고리별 Markdown 내보내기"),
-    ("10", "프롬프트 수정"),
-    ("11", "프롬프트 삭제"),
-    ("12", "조회수 TOP 목록"),
-    ("0", "종료"),
+    ("1", "프롬프트 추가", "기본"),
+    ("2", "프롬프트 목록", "기본"),
+    ("3", "카테고리별 조회", "기본"),
+    ("4", "프롬프트 검색", "기본"),
+    ("5", "프롬프트 상세 보기", "기본"),
+    ("6", "즐겨찾기 추가 / 해제", "즐겨찾기"),
+    ("7", "즐겨찾기 목록", "즐겨찾기"),
+    ("8", "JSON 저장 / 불러오기", "보너스"),
+    ("9", "카테고리별 Markdown 내보내기", "보너스"),
+    ("10", "프롬프트 수정", "보너스"),
+    ("11", "프롬프트 삭제", "보너스"),
+    ("12", "조회수 TOP 목록", "보너스"),
+    ("0", "종료", "종료"),
 ]
+
+
+def clear_screen():
+    """터미널 화면을 비운다 (macOS/Linux: clear, Windows: cls)."""
+    os.system("cls" if os.name == "nt" else "clear")
+
+
+def print_title(title):
+    """기능 제목을 구분선과 함께 출력한다."""
+    print(f"\n{LINE}")
+    print(f"  {title}")
+    print(LINE)
+
+
+def pause():
+    """기능이 끝난 뒤 Enter를 누르면 메뉴로 돌아간다."""
+    input("\n[Enter] 메뉴로 돌아가기 ")
 
 
 def show_menu():
     """메뉴를 출력하고 사용자의 선택을 돌려준다."""
-    print("\n=== 나만의 프롬프트 관리 ===")
-    for number, name in MENU:
-        print(f"{number}. {name}")
-    return input("선택: ").strip()
+    clear_screen()
+    print(LINE)
+    print(f"  나만의 프롬프트 관리   (등록 {len(prompts)}개 · 즐겨찾기 {sum(p['favorite'] for p in prompts)}개)")
+    print(LINE)
+    previous_group = None
+    for number, name, group in MENU:
+        if previous_group is not None and group != previous_group:
+            print("  " + "·" * (WIDTH - 4))
+        print(f"  {number:>2}  {name}")
+        previous_group = group
+    print(LINE)
+    return input("번호 선택 (0~12): ").strip()
 
 
 def input_nonempty(label):
@@ -63,20 +93,46 @@ def choose_category():
         print("목록에 있는 번호를 입력해주세요.")
 
 
+def input_multiline(label):
+    """여러 줄 내용을 입력받는다. 빈 줄을 입력하면 끝. 아무것도 없으면 다시 요청."""
+    while True:
+        print(f"{label} (여러 줄 가능 · 빈 줄 입력으로 끝):")
+        lines = []
+        while True:
+            line = input("  > ")
+            if line.strip() == "":
+                break
+            lines.append(line.rstrip())
+        if lines:
+            return "\n".join(lines)
+        print(f"{label}은(는) 비워둘 수 없습니다. 다시 입력해주세요.")
+
+
 def add_prompt():
     """새 프롬프트를 입력받아 목록에 추가한다. 즐겨찾기 기본값은 False."""
-    print("\n=== 프롬프트 추가 ===")
+    print_title("프롬프트 추가")
     title = input_nonempty("제목")
-    content = input_nonempty("내용")
+    content = input_multiline("내용")
     category = choose_category()
     prompts.append({"title": title, "content": content, "category": category, "favorite": False, "views": 0})
     print(f"\n'{title}' 프롬프트가 추가되었습니다! (총 {len(prompts)}개)")
 
 
+def display_width(text):
+    """한글처럼 폭이 2인 글자를 감안한 표시 폭."""
+    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1 for ch in text)
+
+
+def pad(text, width):
+    """표시 폭 기준으로 오른쪽에 공백을 채워 열을 맞춘다."""
+    return text + " " * max(width - display_width(text), 0)
+
+
 def format_line(index, prompt):
-    """목록 한 줄: 번호. [카테고리] 제목 ⭐"""
+    """목록 한 줄:  3. [이미지 생성]  제목 ⭐"""
     star = " ⭐" if prompt["favorite"] else ""
-    return f"{index}. [{prompt['category']}] {prompt['title']}{star}"
+    category = pad(f"[{prompt['category']}]", 14)
+    return f"{index:>3}. {category} {prompt['title']}{star}"
 
 
 def print_list(items, empty_message="등록된 프롬프트가 없습니다."):
@@ -91,13 +147,13 @@ def print_list(items, empty_message="등록된 프롬프트가 없습니다."):
 
 def show_list():
     """저장된 모든 프롬프트를 번호와 함께 출력한다."""
-    print("\n=== 프롬프트 목록 ===")
+    print_title("프롬프트 목록")
     print_list(list(enumerate(prompts, start=1)))
 
 
 def show_by_category():
     """카테고리를 고르면 그 카테고리의 프롬프트만 출력한다."""
-    print("\n=== 카테고리별 조회 ===")
+    print_title("카테고리별 조회")
     # 기본 카테고리 + 직접 입력으로 추가된 카테고리를 함께 보여준다
     names = list(CATEGORIES) + sorted({p["category"] for p in prompts} - set(CATEGORIES))
     for index, name in enumerate(names, start=1):
@@ -114,7 +170,7 @@ def show_by_category():
 
 def search_prompt():
     """키워드가 제목 또는 내용에 포함된 프롬프트를 검색한다."""
-    print("\n=== 프롬프트 검색 ===")
+    print_title("프롬프트 검색")
     keyword = input_nonempty("검색어")
     lowered = keyword.lower()
     items = [
@@ -141,7 +197,7 @@ def select_prompt(label="번호 입력"):
 
 def show_detail():
     """프롬프트 번호를 입력하면 전체 내용을 출력한다."""
-    print("\n=== 프롬프트 상세 보기 ===")
+    print_title("프롬프트 상세 보기")
     prompt = select_prompt()
     if prompt is None:
         return
@@ -160,7 +216,7 @@ def show_detail():
 
 def toggle_favorite():
     """프롬프트 번호를 입력해 즐겨찾기를 추가하거나 해제한다."""
-    print("\n=== 즐겨찾기 관리 ===")
+    print_title("즐겨찾기 추가 / 해제")
     prompt = select_prompt("프롬프트 번호 입력")
     if prompt is None:
         return
@@ -173,7 +229,7 @@ def toggle_favorite():
 
 def show_favorites():
     """즐겨찾기된 프롬프트만 모아서 출력한다."""
-    print("\n=== 즐겨찾기 목록 ===")
+    print_title("즐겨찾기 목록")
     items = [(i, p) for i, p in enumerate(prompts, start=1) if p["favorite"]]
     if not items:
         print("즐겨찾기한 프롬프트가 없습니다.")
@@ -204,7 +260,7 @@ def load_from_json():
 
 def json_menu():
     """저장/불러오기 중 하나를 고른다."""
-    print("\n=== JSON 저장 / 불러오기 ===")
+    print_title("JSON 저장 / 불러오기")
     print("1) 저장")
     print("2) 불러오기")
     choice = input("선택: ").strip()
@@ -218,7 +274,7 @@ def json_menu():
 
 def export_markdown():
     """카테고리별로 Markdown 파일을 만든다. (보너스 1)"""
-    print("\n=== 카테고리별 Markdown 내보내기 ===")
+    print_title("카테고리별 Markdown 내보내기")
     if not prompts:
         print("내보낼 프롬프트가 없습니다.")
         return
@@ -239,7 +295,7 @@ def export_markdown():
 
 def edit_prompt():
     """프롬프트의 제목·내용·카테고리를 수정한다. 빈 입력은 기존 값 유지. (보너스 2)"""
-    print("\n=== 프롬프트 수정 ===")
+    print_title("프롬프트 수정")
     prompt = select_prompt("수정할 프롬프트 번호")
     if prompt is None:
         return
@@ -258,7 +314,7 @@ def edit_prompt():
 
 def delete_prompt():
     """프롬프트를 삭제한다. 확인 후 진행. (보너스 2)"""
-    print("\n=== 프롬프트 삭제 ===")
+    print_title("프롬프트 삭제")
     prompt = select_prompt("삭제할 프롬프트 번호")
     if prompt is None:
         return
@@ -272,7 +328,7 @@ def delete_prompt():
 
 def show_top():
     """조회수가 많은 순으로 상위 프롬프트를 보여준다. (보너스 2)"""
-    print("\n=== 조회수 TOP 목록 ===")
+    print_title("조회수 TOP 목록")
     ranked = sorted(enumerate(prompts, start=1), key=lambda item: item[1].get("views", 0), reverse=True)
     ranked = [(i, p) for i, p in ranked if p.get("views", 0) > 0][:5]
     if not ranked:
@@ -289,13 +345,16 @@ def main():
     while True:
         choice = show_menu()
         if choice == "0":
-            print("프로그램을 종료합니다.")
+            print("프로그램을 종료합니다. 안녕히 가세요!")
             break
         action = actions.get(choice)
         if action is None:
-            print("잘못된 번호입니다. 메뉴에 있는 번호를 입력해주세요.")
+            if choice:
+                print(f"'{choice}'는 없는 번호입니다. 0~12 중에서 골라주세요.")
+                pause()
             continue
         action()
+        pause()
 
 
 if __name__ == "__main__":
