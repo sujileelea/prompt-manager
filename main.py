@@ -187,7 +187,13 @@ def search_prompt():
 
 
 def select_prompt(label="번호 입력"):
-    """번호를 입력받아 해당 프롬프트를 돌려준다. 잘못된 번호면 None."""
+    """목록을 먼저 보여주고 번호를 입력받아 해당 프롬프트를 돌려준다. 잘못된 번호면 None."""
+    if not prompts:
+        print("등록된 프롬프트가 없습니다.")
+        return None
+    for index, prompt in enumerate(prompts, start=1):
+        print(format_line(index, prompt))
+    print()
     choice = input(f"{label}: ").strip()
     if choice.isdigit() and 1 <= int(choice) <= len(prompts):
         return prompts[int(choice) - 1]
