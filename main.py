@@ -12,7 +12,7 @@ DATA_FILE = "prompts.json"
 EXPORT_DIR = "exports"
 
 # 실행 중 사용하는 프롬프트 목록 (기본 데이터 복사본)
-prompts = [dict(p) for p in DEFAULT_PROMPTS]
+prompts = [dict(p, views=0) for p in DEFAULT_PROMPTS]
 
 MENU = [
     ("1", "프롬프트 추가"),
@@ -24,6 +24,9 @@ MENU = [
     ("7", "즐겨찾기 목록"),
     ("8", "JSON 저장 / 불러오기"),
     ("9", "카테고리별 Markdown 내보내기"),
+    ("10", "프롬프트 수정"),
+    ("11", "프롬프트 삭제"),
+    ("12", "조회수 TOP 목록"),
     ("0", "종료"),
 ]
 
@@ -66,7 +69,7 @@ def add_prompt():
     title = input_nonempty("제목")
     content = input_nonempty("내용")
     category = choose_category()
-    prompts.append({"title": title, "content": content, "category": category, "favorite": False})
+    prompts.append({"title": title, "content": content, "category": category, "favorite": False, "views": 0})
     print(f"\n'{title}' 프롬프트가 추가되었습니다! (총 {len(prompts)}개)")
 
 
@@ -142,11 +145,13 @@ def show_detail():
     prompt = select_prompt()
     if prompt is None:
         return
+    prompt["views"] = prompt.get("views", 0) + 1
     line = "─" * 28
     print(f"\n{line}")
     print(f"제목: {prompt['title']}")
     print(f"카테고리: {prompt['category']}")
     print(f"즐겨찾기: {'⭐' if prompt['favorite'] else '없음'}")
+    print(f"조회수: {prompt['views']}")
     print(line)
     print("내용:")
     print(prompt["content"])
@@ -232,9 +237,55 @@ def export_markdown():
     print(f"\n{len(categories)}개 카테고리를 '{EXPORT_DIR}/' 폴더에 내보냈습니다.")
 
 
+def edit_prompt():
+    """프롬프트의 제목·내용·카테고리를 수정한다. 빈 입력은 기존 값 유지. (보너스 2)"""
+    print("\n=== 프롬프트 수정 ===")
+    prompt = select_prompt("수정할 프롬프트 번호")
+    if prompt is None:
+        return
+    print("(그대로 두려면 Enter)")
+    title = input(f"제목 [{prompt['title']}]: ").strip()
+    content = input("내용 [기존 내용 유지]: ").strip()
+    change_category = input(f"카테고리 변경? (현재 {prompt['category']}) y/N: ").strip().lower()
+    if title:
+        prompt["title"] = title
+    if content:
+        prompt["content"] = content
+    if change_category == "y":
+        prompt["category"] = choose_category()
+    print(f"'{prompt['title']}' 프롬프트를 수정했습니다.")
+
+
+def delete_prompt():
+    """프롬프트를 삭제한다. 확인 후 진행. (보너스 2)"""
+    print("\n=== 프롬프트 삭제 ===")
+    prompt = select_prompt("삭제할 프롬프트 번호")
+    if prompt is None:
+        return
+    confirm = input(f"'{prompt['title']}'을(를) 정말 삭제할까요? y/N: ").strip().lower()
+    if confirm != "y":
+        print("삭제를 취소했습니다.")
+        return
+    prompts.remove(prompt)
+    print(f"'{prompt['title']}' 프롬프트를 삭제했습니다. (남은 {len(prompts)}개)")
+
+
+def show_top():
+    """조회수가 많은 순으로 상위 프롬프트를 보여준다. (보너스 2)"""
+    print("\n=== 조회수 TOP 목록 ===")
+    ranked = sorted(enumerate(prompts, start=1), key=lambda item: item[1].get("views", 0), reverse=True)
+    ranked = [(i, p) for i, p in ranked if p.get("views", 0) > 0][:5]
+    if not ranked:
+        print("아직 조회한 프롬프트가 없습니다. 상세 보기를 하면 조회수가 쌓입니다.")
+        return
+    for rank, (index, prompt) in enumerate(ranked, start=1):
+        print(f"{rank}위 (조회 {prompt['views']}회) — {format_line(index, prompt)}")
+
+
 def main():
     actions = {"1": add_prompt, "2": show_list, "3": show_by_category, "4": search_prompt, "5": show_detail, "6": toggle_favorite, "7": show_favorites,
-               "8": json_menu, "9": export_markdown}
+               "8": json_menu, "9": export_markdown,
+               "10": edit_prompt, "11": delete_prompt, "12": show_top}
     while True:
         choice = show_menu()
         if choice == "0":
