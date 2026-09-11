@@ -101,8 +101,26 @@ def show_by_category():
     print_list(items, f"[{category}] 카테고리에 등록된 프롬프트가 없습니다.")
 
 
+def search_prompt():
+    """키워드가 제목 또는 내용에 포함된 프롬프트를 검색한다."""
+    print("\n=== 프롬프트 검색 ===")
+    keyword = input_nonempty("검색어")
+    lowered = keyword.lower()
+    items = [
+        (i, p) for i, p in enumerate(prompts, start=1)
+        if lowered in p["title"].lower() or lowered in p["content"].lower()
+    ]
+    print("\n검색 결과:")
+    if not items:
+        print(f"'{keyword}'을(를) 포함한 프롬프트가 없습니다.")
+        return
+    for index, prompt in items:
+        print(format_line(index, prompt))
+    print(f"\n{len(items)}개의 프롬프트를 찾았습니다.")
+
+
 def main():
-    actions = {"1": add_prompt, "2": show_list, "3": show_by_category}
+    actions = {"1": add_prompt, "2": show_list, "3": show_by_category, "4": search_prompt}
     while True:
         choice = show_menu()
         if choice == "0":
