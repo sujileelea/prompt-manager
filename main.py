@@ -145,8 +145,32 @@ def show_detail():
     print(line)
 
 
+def toggle_favorite():
+    """프롬프트 번호를 입력해 즐겨찾기를 추가하거나 해제한다."""
+    print("\n=== 즐겨찾기 관리 ===")
+    prompt = select_prompt("프롬프트 번호 입력")
+    if prompt is None:
+        return
+    prompt["favorite"] = not prompt["favorite"]
+    state = "추가했습니다" if prompt["favorite"] else "해제했습니다"
+    print(f"'{prompt['title']}' 프롬프트를 즐겨찾기에서 {state}!" if not prompt["favorite"]
+          else f"'{prompt['title']}' 프롬프트를 즐겨찾기에 {state}!")
+
+
+def show_favorites():
+    """즐겨찾기된 프롬프트만 모아서 출력한다."""
+    print("\n=== 즐겨찾기 목록 ===")
+    items = [(i, p) for i, p in enumerate(prompts, start=1) if p["favorite"]]
+    if not items:
+        print("즐겨찾기한 프롬프트가 없습니다.")
+        return
+    for index, prompt in items:
+        print(format_line(index, prompt))
+    print(f"\n총 {len(items)}개의 즐겨찾기")
+
+
 def main():
-    actions = {"1": add_prompt, "2": show_list, "3": show_by_category, "4": search_prompt, "5": show_detail}
+    actions = {"1": add_prompt, "2": show_list, "3": show_by_category, "4": search_prompt, "5": show_detail, "6": toggle_favorite, "7": show_favorites}
     while True:
         choice = show_menu()
         if choice == "0":
